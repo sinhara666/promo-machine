@@ -81,6 +81,29 @@
     border:1px solid rgba(61,220,132,.55); color:var(--txt); padding:11px 20px; border-radius:999px; font-size:.9rem;
     transition:.3s; z-index:9; box-shadow:0 14px 40px rgba(0,0,0,.5); }
   .toast.show{ transform:translateX(-50%) translateY(0); }
+  .rec{ margin-top:14px; border:1px solid var(--line); border-radius:16px; background:rgba(0,0,0,.28); padding:16px; }
+  .rec-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; }
+  .rec h3{ font-size:1.02rem; }
+  .badge{ font-size:.7rem; letter-spacing:.08em; text-transform:uppercase; border:1px solid var(--line);
+    border-radius:999px; padding:4px 10px; color:var(--dim); background:rgba(255,255,255,.06); white-space:nowrap; }
+  .badge.hot{ color:#ffb3ab; border-color:rgba(229,72,77,.55); }
+  .badge.proven{ color:var(--green); border-color:rgba(61,220,132,.55); }
+  .rec p{ color:var(--dim); font-size:.93rem; line-height:1.55; margin-top:8px; }
+  .rec p b{ color:var(--txt); }
+  .rec a{ color:#ff9d94; }
+  .rec .rowline{ margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .placed-toggle{ display:inline-flex; align-items:center; gap:8px; cursor:pointer; font-size:.9rem; color:var(--dim);
+    border:1px solid var(--line); border-radius:10px; padding:7px 13px; background:var(--panel2); }
+  .placed-toggle input{ accent-color:var(--red); width:16px; height:16px; }
+  table.track{ width:100%; border-collapse:collapse; margin-top:10px; font-size:.92rem; }
+  table.track th{ text-align:left; color:var(--faint); font-size:.74rem; letter-spacing:.07em; text-transform:uppercase; padding:8px 6px; border-bottom:1px solid var(--line); }
+  table.track td{ padding:7px 6px; border-bottom:1px solid rgba(255,255,255,.06); color:var(--dim); }
+  table.track td:first-child{ color:var(--txt); }
+  table.track input{ width:76px; background:rgba(0,0,0,.35); border:1px solid var(--line); border-radius:8px; color:var(--txt); padding:6px 8px; font-size:.9rem; }
+  .totals{ display:flex; gap:18px; flex-wrap:wrap; margin-top:6px; }
+  .totals div{ font-size:.9rem; color:var(--dim); }
+  .totals b{ color:var(--txt); font-size:1.15rem; display:block; }
+  @media (max-width:640px){ table.track input{ width:58px; } }
 </style>
 </head>
 <body>
@@ -165,6 +188,30 @@
     </div>
   </div>
 
+  <div class="hidden" id="distWrap">
+    <div class="card">
+      <h2>4. Distribution: where this build belongs</h2>
+      <p class="hint">Matched to this product's category, buyer, price, and how it runs. Strongest fits first. When a destination starts bringing purchases, it earns a Proven badge and moves up next time.</p>
+      <div id="recs"></div>
+    </div>
+    <div class="card">
+      <h2>5. Placement checklist</h2>
+      <p class="hint">The same picks as work orders: what to publish, what it costs, the official door, and a tracking link that tags every visit with where it came from. Tick them off as you place them. Saved on this device.</p>
+      <div id="checklist"></div>
+    </div>
+    <div class="card">
+      <h2>6. Results tracking</h2>
+      <p class="hint">Type in what each destination actually brought you. This is how the machine learns: next run, recommendations lean on real results, not guesses.</p>
+      <div class="totals" id="totals"></div>
+      <div style="overflow-x:auto">
+      <table class="track">
+        <thead><tr><th>Destination</th><th>Clicks</th><th>Sign ups</th><th>Leads</th><th>Purchases</th></tr></thead>
+        <tbody id="trackBody"></tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+
   <footer>Promo Machine by Blxckroze. Runs fully in your browser. Your product details and your key never leave this page.</footer>
 </div>
 <div class="toast" id="toast">Copied</div>
@@ -208,7 +255,7 @@ const PRESETS = [
   { name:"QuestKid", cat:"gamified chore and routine app for kids",
     what:"Turns chores and routines into quests with pets, XP, coins, and rewards kids actually want to earn",
     who:"Parents of ADHD kids, including teens", benefits:"Built for ADHD kids, with a teen mode up to age 17\nAnimated pet buddies, streaks, and a rewards shop\nOne family, one device, no account needed",
-    price:"", link:"https://github.com/sinhara666/questkid", alt:"Joon",
+    price:"$90 one time, forever, no subscription", link:"https://github.com/sinhara666/questkid", alt:"Joon",
     runs:"Runs in the browser, data stays on the device" },
   { name:"Karma", cat:"programming language for calm websites",
     what:"A small language that compiles .karma files into HTML pages, built to be calm, boring, and predictable on purpose",
@@ -340,6 +387,7 @@ $('runBtn').onclick = ()=>{
     $('kit').appendChild(div);
   });
   $('kitWrap').classList.remove('hidden');
+  buildDistribution(d);
   $('scoreCard').scrollIntoView({ behavior:'smooth' });
 };
 
@@ -376,6 +424,167 @@ $('polishBtn').onclick = async ()=>{
     else toast('Groq did not return text, kit unchanged');
   }catch(e){ toast('Polish failed, kit unchanged'); }
 };
+
+// ---------- Distribution engine ----------
+const STORE_URL = 'https://muse.ai/s/blxckroze-storefront-mw6ohxzxoxkjxfxk';
+function hay(d){ return (d.name+' '+d.cat+' '+d.who+' '+d.what+' '+d.runs).toLowerCase(); }
+function isFree(d){ return /free/i.test(d.price||''); }
+
+const DESTS = [
+  { name:'Your Blxckroze store shelf', type:'Your store', cost:'Free', url:STORE_URL,
+    publish:'The one line and the price go on the product page here. Every other destination points back to this shelf or the product link.',
+    score:d=>[10, 'Your home shelf. Everything else on this list exists to send people here.'] },
+  { name:'Product Hunt', type:'Launch platform', cost:'Free', url:'https://www.producthunt.com/posts/new',
+    publish:'The launch post from the kit, with the one line as your tagline.',
+    score:d=>[6, 'One launch day in front of early adopters and other builders. AI reads Product Hunt pages when it answers "what is new in '+d.cat+'".'] },
+  { name:'AlternativeTo', type:'Directory', cost:'Free', url:'https://alternativeto.net',
+    publish:'The directory listing from the kit.',
+    score:d=> d.alt? [8, 'Built for the exact question buyers ask AI: "what is an alternative to '+d.alt+'?" Your listing is the raw material for that answer.'] : [2,''] },
+  { name:'Chrome Web Store', type:'Marketplace', cost:'$5 one time developer fee', url:'https://chrome.google.com/webstore/devconsole',
+    publish:'Store listing: the short description plus the one line at the top.',
+    score:d=> /browser extension/i.test(d.runs)? [10, 'This is a browser extension, so this is its home store. Ratings and listing text here are quoted by AI constantly.'] : null },
+  { name:'Gumroad', type:'Marketplace', cost:'Free to list, a cut of each sale', url:'https://gumroad.com',
+    publish:'The long description and the price. This is the till.',
+    score:d=> !isFree(d)&&d.price? [6, 'A priced digital product needs a checkout that just works. Gumroad is where this one rings up.'] : [2,''] },
+  { name:'G2', type:'B2B directory', cost:'Free basic listing', url:'https://www.g2.com/products/new',
+    publish:'The directory listing, filed under your category.',
+    score:d=> /compan|business|team|agency|manager|owner|operations/.test(hay(d))? [7, 'Business buyers ask AI what to buy, and AI reads G2 before it answers. A claimed listing with your one line beats a missing one.'] : null },
+  { name:'Capterra', type:'B2B directory', cost:'Free basic listing', url:'https://www.capterra.com/vendors',
+    publish:'The directory listing, filed under your category.',
+    score:d=> /compan|business|team|agency|manager|owner|operations/.test(hay(d))? [6, 'Same game as G2: business software directories are where AI shops for recommendations to companies.'] : null },
+  { name:'SaaSHub', type:'Directory', cost:'Free', url:'https://www.saashub.com',
+    publish:'The directory listing from the kit.',
+    score:d=> /software|dashboard|tool|app/.test(hay(d))? [5, 'A clean software directory that feeds comparison answers. Cheap to place, permanent once listed.'] : null },
+  { name:'AppSumo', type:'Deal marketplace', cost:'Application, revenue share', url:'https://appsumo.com/partners',
+    publish:'The long description, framed as a lifetime deal.',
+    score:d=> /one time|forever|lifetime|buy once/i.test(d.price||'')? [6, 'AppSumo buyers hunt exactly your deal shape: pay once, own it forever. Your price line is the pitch.'] : null },
+  { name:'Hacker News (Show HN)', type:'Launch platform', cost:'Free', url:'https://news.ycombinator.com/show',
+    publish:'The social post rewritten plain and technical, no hype.',
+    score:d=> /language|developer|open source|compiler|code|programming/.test(hay(d))? [6, 'Developer tools get their first believers here, and Show HN threads get quoted for years.'] : null },
+  { name:"There's An AI For That", type:'AI directory', cost:'Paid submission, fee on the site', url:'https://theresanaiforthat.com',
+    publish:'The one line and the short description.',
+    score:d=> /ai|automation|assistant|generator|simulat/.test(hay(d))? [6, 'One of the biggest AI tool directories. AI assistants themselves pull from it when listing tools.'] : null },
+  { name:'Future Tools', type:'AI directory', cost:'Free submission', url:'https://www.futuretools.io',
+    publish:'The one line and the short description.',
+    score:d=> /ai|automation|assistant|generator|simulat/.test(hay(d))? [4, 'A curated AI tools list with a free door. Worth the five minutes.'] : null },
+  { name:'BetaList', type:'Launch platform', cost:'Free queue, paid fast track', url:'https://betalist.com/submit',
+    publish:'The short description and the one line.',
+    score:d=> isFree(d)? [5, 'Free products get featured for early adopters here. Good first proof that strangers want it.'] : [2,''] },
+  { name:'Skool promo communities', type:'Community', cost:'Free, promo threads only', url:'https://www.skool.com',
+    publish:'The social post, in the promo threads (The Promo Lounge, The SKOOL Directory Saturday thread). Follow each room\u2019s rules.',
+    score:d=> /skool|community/.test(hay(d))? [8, 'Your buyer is literally inside Skool. A Skool tool promoted inside Skool communities is fishing where the fish are.'] : null },
+  { name:'Facebook groups for your buyer', type:'Community', cost:'Free', url:'https://www.facebook.com/groups',
+    publish:'A helpful post first, the product second. Use the social post, softened.',
+    score:d=> /parent|mom|kids|family|children/.test(hay(d))? [8, 'These buyers do not read directories. They ask other parents in Facebook groups, and AI increasingly quotes those threads. Be the name that comes up.'] : null },
+  { name:'Etsy', type:'Marketplace', cost:'$0.20 per listing', url:'https://www.etsy.com/sell',
+    publish:'The long description with the one line at the top.',
+    score:d=> /template|notion|planner|printable/.test(hay(d))? [8, 'Templates sell on Etsy every day, and Etsy listings rank in AI answers for "best template for" questions.'] : null },
+  { name:'Notion Template Gallery', type:'Directory', cost:'Free', url:'https://www.notion.com/templates',
+    publish:'The directory listing, with a duplicate link to the template.',
+    score:d=> /notion|template/.test(hay(d))? [7, 'The official gallery is where Notion users and AI both look first for templates.'] : null },
+  { name:'Indie Hackers', type:'Community', cost:'Free', url:'https://www.indiehackers.com',
+    publish:'The social post adapted into a build story: what you made and why.',
+    score:d=>[4, 'Builders talk here, and their threads become the third party voices AI trusts most.'] },
+  { name:'Reddit (r/SideProject and your niche subs)', type:'Community', cost:'Free', url:'https://www.reddit.com/r/SideProject/',
+    publish:'A story post, not an ad. Lead with the problem, answer every comment.',
+    score:d=>[4, 'Reddit threads are some of the most quoted sources in AI answers. One honest thread keeps working for years.'] },
+  { name:'YouTube walkthrough', type:'Video', cost:'Free', url:'https://www.youtube.com',
+    publish:'Record the long description as a walkthrough script. Show the product working.',
+    score:d=>[4, 'After text, video is what AI quotes. One walkthrough per product is a permanent asset.'] },
+  { name:'Uneed', type:'Launch directory', cost:'Free', url:'https://www.uneed.best',
+    publish:'The short description and the one line.',
+    score:d=>[3, 'A small launch board with a free door. Five minutes, one more citation on the web.'] },
+  { name:'Microlaunch', type:'Launch directory', cost:'Free', url:'https://microlaunch.net',
+    publish:'The short description and the one line.',
+    score:d=>[3, 'Another free launch board. These small listings add up into "this product is everywhere" for AI.'] }
+];
+
+function slugify(s){ return (s||'product').toLowerCase().replace(/[^a-z0-9]+/g,'-'); }
+function loadSaved(slug){ try{ return JSON.parse(localStorage.getItem('pm2_'+slug)) || {placed:{}, stats:{}}; }catch(e){ return {placed:{}, stats:{}}; } }
+function saveSaved(slug, data){ try{ localStorage.setItem('pm2_'+slug, JSON.stringify(data)); }catch(e){} }
+
+let currentRecs = [];
+
+function buildDistribution(d){
+  const slug = slugify(d.name);
+  const saved = loadSaved(slug);
+  const scored = [];
+  DESTS.forEach(dest=>{
+    const r = dest.score(d);
+    if(!r) return;
+    const [s, why] = r;
+    if(s < 3) return;
+    const st = saved.stats[dest.name] || {};
+    const purchases = parseInt(st.purchases||0, 10) || 0;
+    scored.push({ dest, s: s + (purchases>0? 3:0), why, purchases });
+  });
+  scored.sort((a,b)=> b.s - a.s);
+  currentRecs = scored.slice(0, 10);
+
+  $('recs').innerHTML = '';
+  currentRecs.forEach(({dest, why, purchases})=>{
+    const div = document.createElement('div'); div.className='rec';
+    div.innerHTML = `<div class="rec-top"><h3></h3><span class="badge ${purchases>0?'proven':'hot'}">${purchases>0? 'Proven: '+purchases+' purchase'+(purchases>1?'s':'') : dest.type}</span></div>
+      <p><b>Why it fits:</b> <span class="why"></span></p>
+      <p><b>What to publish:</b> <span class="pub"></span></p>
+      <p><b>Cost:</b> ${dest.cost} &nbsp;·&nbsp; <a href="${dest.url}" target="_blank" rel="noopener">Official submission page</a></p>`;
+    div.querySelector('h3').textContent = dest.name;
+    div.querySelector('.why').textContent = why;
+    div.querySelector('.pub').textContent = dest.publish;
+    $('recs').appendChild(div);
+  });
+
+  $('checklist').innerHTML = '';
+  currentRecs.forEach(({dest})=>{
+    const row = document.createElement('div'); row.className='rec';
+    const trackLink = d.link? (d.link + (d.link.includes('?')?'&':'?') + 'utm_source=' + slugify(dest.name) + '&utm_medium=promo-machine') : '';
+    row.innerHTML = `<div class="rec-top"><h3></h3><label class="placed-toggle"><input type="checkbox"> Placed</label></div>
+      <p><b>Publish:</b> <span class="pub"></span></p>
+      <p><b>Cost:</b> ${dest.cost} &nbsp;·&nbsp; <a href="${dest.url}" target="_blank" rel="noopener">Open the official page</a></p>
+      ${trackLink? '<div class="rowline"><button class="copybtn tlink" type="button">Copy my tracking link</button><span style="color:var(--faint); font-size:.82rem">Use this link there so visits carry the destination name.</span></div>' : ''}`;
+    row.querySelector('h3').textContent = dest.name;
+    row.querySelector('.pub').textContent = dest.publish;
+    const cb = row.querySelector('input[type=checkbox]');
+    cb.checked = !!saved.placed[dest.name];
+    cb.onchange = ()=>{ const s2 = loadSaved(slug); s2.placed[dest.name] = cb.checked; saveSaved(slug, s2); toast(cb.checked? dest.name+' marked placed' : dest.name+' unmarked'); };
+    const tb = row.querySelector('.tlink');
+    if(tb) tb.onclick = ()=> copyText(trackLink);
+    $('checklist').appendChild(row);
+  });
+
+  renderTracking(d, slug);
+  $('distWrap').classList.remove('hidden');
+}
+
+function renderTracking(d, slug){
+  const saved = loadSaved(slug);
+  const body = $('trackBody'); body.innerHTML = '';
+  const fields = ['clicks','signups','leads','purchases'];
+  currentRecs.forEach(({dest})=>{
+    const st = saved.stats[dest.name] || {};
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td></td>` + fields.map(f=>`<td><input type="number" min="0" value="${st[f]||''}" data-f="${f}"></td>`).join('');
+    tr.querySelector('td').textContent = dest.name;
+    tr.querySelectorAll('input').forEach(inp=>{
+      inp.onchange = ()=>{
+        const s2 = loadSaved(slug);
+        s2.stats[dest.name] = s2.stats[dest.name] || {};
+        s2.stats[dest.name][inp.dataset.f] = inp.value;
+        saveSaved(slug, s2);
+        updateTotals(slug);
+      };
+    });
+    body.appendChild(tr);
+  });
+  updateTotals(slug);
+}
+
+function updateTotals(slug){
+  const saved = loadSaved(slug);
+  const t = { clicks:0, signups:0, leads:0, purchases:0 };
+  Object.values(saved.stats).forEach(st=>{ Object.keys(t).forEach(k=> t[k] += parseInt(st[k]||0,10)||0 ); });
+  $('totals').innerHTML = `<div><b>${t.clicks}</b>Clicks</div><div><b>${t.signups}</b>Sign ups</div><div><b>${t.leads}</b>Leads</div><div><b>${t.purchases}</b>Purchases</div>`;
+}
 
 loadPreset(0);
 </script>
