@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Promo Machine: Get AI Talking About Your Product</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root{
+    --bg:#0a0a12; --panel:rgba(255,255,255,.055); --panel2:rgba(255,255,255,.09);
+    --line:rgba(255,255,255,.13); --txt:#f2f0fa; --dim:#b9b4d0; --faint:#8b86a3;
+    --red:#e5484d; --red2:#ff6b5e; --violet:#8b5cf6; --green:#3ddc84; --amber:#ffb224;
+  }
+  body{ font-family:'Segoe UI',system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--txt); min-height:100vh; overflow-x:hidden; }
+  .bgfx{ position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(700px 420px at 12% -6%, rgba(229,72,77,.20), transparent 60%),
+      radial-gradient(820px 520px at 88% 8%, rgba(139,92,246,.17), transparent 60%),
+      radial-gradient(900px 700px at 50% 115%, rgba(47,79,79,.35), transparent 60%),
+      linear-gradient(180deg,#0a0a12,#0d0b16 55%,#0a0a12);
+  }
+  .bgfx::after{ content:''; position:absolute; inset:0;
+    background-image:linear-gradient(rgba(255,255,255,.028) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.028) 1px,transparent 1px);
+    background-size:56px 56px; animation:gridmove 26s linear infinite; }
+  @keyframes gridmove{ from{ background-position:0 0,0 0; } to{ background-position:0 56px,0 0; } }
+  .wrap{ position:relative; z-index:1; max-width:1040px; margin:0 auto; padding:22px 16px 70px; }
+  header{ text-align:center; padding:26px 0 8px; }
+  .logo{ font-size:.78rem; letter-spacing:.42em; color:var(--faint); text-transform:uppercase; }
+  h1{ font-size:clamp(2rem,6vw,3.2rem); font-weight:800; line-height:1.05; margin-top:8px;
+    background:linear-gradient(92deg,#fff 10%,#ffb3ab 42%,var(--red2) 62%,var(--violet) 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .sub{ color:var(--dim); max-width:620px; margin:12px auto 0; font-size:1.02rem; line-height:1.5; }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:20px;
+    backdrop-filter:blur(14px); box-shadow:0 18px 50px rgba(0,0,0,.45); margin-top:20px; }
+  .card h2{ font-size:1.06rem; letter-spacing:.02em; margin-bottom:4px; }
+  .card .hint{ color:var(--faint); font-size:.88rem; margin-bottom:14px; line-height:1.45; }
+  label{ display:block; font-size:.8rem; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); margin:14px 0 6px; }
+  label:first-of-type{ margin-top:2px; }
+  input[type=text], input[type=url], textarea, select{ width:100%; background:rgba(0,0,0,.35); border:1px solid var(--line);
+    border-radius:12px; color:var(--txt); padding:11px 13px; font-size:.98rem; font-family:inherit; }
+  textarea{ min-height:64px; resize:vertical; }
+  input:focus, textarea:focus, select:focus{ outline:2px solid rgba(229,72,77,.55); border-color:transparent; }
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:0 16px; }
+  @media (max-width:640px){ .grid2{ grid-template-columns:1fr; } }
+  .presets{ display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
+  .chip{ border:1px solid var(--line); background:var(--panel2); color:var(--txt); border-radius:999px;
+    padding:7px 14px; font-size:.86rem; cursor:pointer; transition:.18s; }
+  .chip:hover{ transform:translateY(-2px); border-color:rgba(255,107,94,.65); box-shadow:0 8px 22px rgba(229,72,77,.25); }
+  .btn{ border:none; cursor:pointer; border-radius:14px; padding:14px 22px; font-size:1rem; font-weight:700;
+    color:#fff; background:linear-gradient(92deg,var(--red),#b02a6e 60%,var(--violet)); transition:.18s; width:100%; margin-top:18px;
+    box-shadow:0 12px 30px rgba(229,72,77,.30); }
+  .btn:hover{ transform:translateY(-2px); box-shadow:0 18px 38px rgba(229,72,77,.4); }
+  .btn.ghost{ background:var(--panel2); border:1px solid var(--line); box-shadow:none; font-weight:600; }
+  .btn.small{ width:auto; padding:8px 14px; font-size:.85rem; margin-top:0; }
+  .score-wrap{ display:flex; gap:20px; align-items:center; flex-wrap:wrap; }
+  .score-num{ font-size:3.4rem; font-weight:800; line-height:1;
+    background:linear-gradient(90deg,#ffb3ab,var(--red2),var(--violet)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .score-label{ color:var(--dim); font-size:.92rem; max-width:420px; line-height:1.5; }
+  .checks{ margin-top:14px; display:grid; grid-template-columns:1fr 1fr; gap:8px 18px; }
+  @media (max-width:640px){ .checks{ grid-template-columns:1fr; } }
+  .check{ display:flex; gap:9px; align-items:flex-start; font-size:.93rem; color:var(--dim); line-height:1.4; }
+  .check b{ color:var(--txt); }
+  .dot{ flex:0 0 auto; width:20px; height:20px; border-radius:50%; display:grid; place-items:center; font-size:.72rem; font-weight:800; margin-top:1px; }
+  .dot.ok{ background:rgba(61,220,132,.18); color:var(--green); border:1px solid rgba(61,220,132,.5); }
+  .dot.no{ background:rgba(255,178,36,.15); color:var(--amber); border:1px solid rgba(255,178,36,.5); }
+  .kit-sec{ margin-top:18px; border:1px solid var(--line); border-radius:16px; background:rgba(0,0,0,.28); overflow:hidden; }
+  .kit-head{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:13px 16px; background:rgba(255,255,255,.05); }
+  .kit-head h3{ font-size:.98rem; }
+  .kit-head .why{ color:var(--faint); font-size:.8rem; margin-top:2px; }
+  .copybtn{ flex:0 0 auto; border:1px solid var(--line); background:var(--panel2); color:var(--txt); border-radius:10px;
+    padding:7px 13px; font-size:.82rem; cursor:pointer; transition:.15s; }
+  .copybtn:hover{ border-color:rgba(255,107,94,.7); }
+  .copybtn.done{ color:var(--green); border-color:rgba(61,220,132,.6); }
+  .kit-body{ padding:15px 16px; white-space:pre-wrap; word-break:break-word; font-size:.94rem; line-height:1.6; color:#e8e5f5; }
+  .kit-body.mono{ font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.82rem; color:#cfc9ea; }
+  .hidden{ display:none; }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; }
+  .row .btn{ flex:1; min-width:200px; }
+  footer{ text-align:center; color:var(--faint); font-size:.85rem; margin-top:30px; line-height:1.6; }
+  .toast{ position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(80px); background:#17142a;
+    border:1px solid rgba(61,220,132,.55); color:var(--txt); padding:11px 20px; border-radius:999px; font-size:.9rem;
+    transition:.3s; z-index:9; box-shadow:0 14px 40px rgba(0,0,0,.5); }
+  .toast.show{ transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="bgfx"></div>
+<div class="wrap">
+  <header>
+    <div class="logo">Blxckroze</div>
+    <h1>Promo Machine</h1>
+    <p class="sub">Tell it your product. It tests how ready your build is for AI to talk about, then hands you the exact kit AI quotes: the lines, the answers, the files, the listings.</p>
+  </header>
+
+  <div class="card">
+    <h2>1. Pick a build, or type your own</h2>
+    <p class="hint">One tap loads a build you already own. Or fill in any product, yours or anybody's.</p>
+    <div class="presets" id="presets"></div>
+
+    <div class="grid2">
+      <div>
+        <label>Product name</label>
+        <input type="text" id="f-name" placeholder="e.g. JaraLock">
+      </div>
+      <div>
+        <label>Category</label>
+        <input type="text" id="f-cat" placeholder="e.g. employee offboarding software">
+      </div>
+    </div>
+    <label>What it does, in one plain sentence</label>
+    <input type="text" id="f-what" placeholder="e.g. Removes a departing employee from every company app and proves it">
+    <label>Who it is for</label>
+    <input type="text" id="f-who" placeholder="e.g. IT managers at small and mid size companies">
+    <label>Three best things about it (one per line)</label>
+    <textarea id="f-benefits" placeholder="Buy once, own forever&#10;Runs on your own machine&#10;Nothing leaves your network"></textarea>
+    <div class="grid2">
+      <div>
+        <label>Price</label>
+        <input type="text" id="f-price" placeholder="e.g. Buy once, no per seat fee">
+      </div>
+      <div>
+        <label>Public link</label>
+        <input type="url" id="f-link" placeholder="https://">
+      </div>
+    </div>
+    <div class="grid2">
+      <div>
+        <label>The big name people compare it to</label>
+        <input type="text" id="f-alt" placeholder="e.g. Okta, Flo, TubeBuddy">
+      </div>
+      <div>
+        <label>How it runs</label>
+        <select id="f-runs">
+          <option value="Self hosted, bring your own key (BYOK)">Self hosted, BYOK</option>
+          <option value="Runs in the browser, data stays on the device">In the browser, on device</option>
+          <option value="Browser extension">Browser extension</option>
+          <option value="Hosted by the seller">Hosted</option>
+        </select>
+      </div>
+    </div>
+    <label>Optional: Groq key for AI polished copy (BYOK, stays in your browser)</label>
+    <input type="text" id="f-key" placeholder="Leave blank and the machine writes the kit from your words">
+    <button class="btn" id="runBtn">Test this build and build my kit</button>
+  </div>
+
+  <div class="card hidden" id="scoreCard">
+    <h2>2. The test: can AI talk about this build today?</h2>
+    <p class="hint">AI recommends what it can find, read, and quote. This is the honest score for this build right now.</p>
+    <div class="score-wrap">
+      <div class="score-num" id="scoreNum">0</div>
+      <div class="score-label" id="scoreLabel"></div>
+    </div>
+    <div class="checks" id="checks"></div>
+  </div>
+
+  <div class="hidden" id="kitWrap">
+    <div class="card">
+      <h2>3. Your AI promo kit</h2>
+      <p class="hint">Every block has one job. Copy them where they belong: the lines go on your pages, the answers go where people ask questions, the files go on your site, the listings go in the directories AI reads.</p>
+      <div id="kit"></div>
+      <div class="row">
+        <button class="btn" id="downloadBtn">Download the whole kit (.md)</button>
+        <button class="btn ghost" id="polishBtn">Polish the wording with AI (needs Groq key)</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>Promo Machine by Blxckroze. Runs fully in your browser. Your product details and your key never leave this page.</footer>
+</div>
+<div class="toast" id="toast">Copied</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+const PRESETS = [
+  { name:"JaraLock", cat:"employee offboarding and access automation software",
+    what:"Removes a departing employee's access from every company app and proves they are gone",
+    who:"IT managers and ops leads at small and mid size companies",
+    benefits:"Buy once, own forever, no per seat fee\nSelf hosted, source available, your data never leaves your network\nCovers Google Workspace, Microsoft Entra ID, Atlassian, Slack, GitHub, Zoom and Claude, with hash chained audit logs",
+    price:"Buy once, no per seat fee", link:"https://jaralock.com", alt:"Okta Workflows and BetterCloud",
+    runs:"Self hosted, bring your own key (BYOK)" },
+  { name:"Private Tracker", cat:"private sex and cycle tracker",
+    what:"Logs partners and dates, tracks your cycle and fertile window, and checks which encounters fall inside a possible conception window",
+    who:"Women who want a private record of their sex life and cycle",
+    benefits:"Everything stays on the device, nothing is uploaded anywhere\nNo account, no sign up, no cloud\nFree to open, one time unlock for the window check",
+    price:"Free, window unlock is a one time payment", link:"https://github.com/sinhara666/private-tracker", alt:"Flo and other cycle apps",
+    runs:"Runs in the browser, data stays on the device" },
+  { name:"MemberRead", cat:"Skool community owner tool (Chrome extension)",
+    what:"Reads a Skool community's members and classrooms so an owner can see who is there and what is inside",
+    who:"Skool community owners", benefits:"Built by a Skool owner, for owners\nOne time price, no subscription\nUnlisted, install by link",
+    price:"$97 one time", link:"", alt:"spreadsheets and manual member tracking",
+    runs:"Browser extension" },
+  { name:"SkoolTrack", cat:"Skool member companion (Chrome extension)",
+    what:"Helps Skool members browse communities and courses and keep track of their learning",
+    who:"Skool members in multiple communities", benefits:"Lean free tier for browsing\nOne time launch price, goes up after launch\nMade for members, not owners",
+    price:"$47 one time launch price", link:"", alt:"the plain Skool app",
+    runs:"Browser extension" },
+  { name:"TubePilot", cat:"YouTube creator dashboard",
+    what:"Gives small YouTube creators a daily dashboard of video ideas, a weekly content plan, and money tracking for their niche",
+    who:"Small YouTube creators growing a channel", benefits:"Free to open in the browser\nBring your own Groq key only if you want AI ideas, templates work offline\nA full week of video plans in one tap",
+    price:"Free", link:"https://github.com/sinhara666/tubepilot", alt:"vidIQ and TubeBuddy",
+    runs:"Runs in the browser, data stays on the device" },
+  { name:"SkoolPilot", cat:"Skool community owner dashboard",
+    what:"Gives Skool owners a daily dashboard of post ideas, a week of content, member tracking, and gamification ideas",
+    who:"Skool community owners", benefits:"Free to open in the browser\nA full week of posts written in one tap\nTracks member engagement and spots ghost members",
+    price:"Free", link:"https://github.com/sinhara666/skoolpilot", alt:"spreadsheets and posting from scratch",
+    runs:"Runs in the browser, data stays on the device" },
+  { name:"QuestKid", cat:"gamified chore and routine app for kids",
+    what:"Turns chores and routines into quests with pets, XP, coins, and rewards kids actually want to earn",
+    who:"Parents of ADHD kids, including teens", benefits:"Built for ADHD kids, with a teen mode up to age 17\nAnimated pet buddies, streaks, and a rewards shop\nOne family, one device, no account needed",
+    price:"", link:"https://github.com/sinhara666/questkid", alt:"Joon",
+    runs:"Runs in the browser, data stays on the device" },
+  { name:"Karma", cat:"programming language for calm websites",
+    what:"A small language that compiles .karma files into HTML pages, built to be calm, boring, and predictable on purpose",
+    who:"Builders with ADHD who want simple, predictable tools", benefits:"Free and open source (MIT)\nCompiler, validator, CLI, and offline mode included\nReduces mental load instead of adding to it",
+    price:"Free, open source", link:"https://github.com/sinhara666/Karma", alt:"heavy website frameworks",
+    runs:"Self hosted, bring your own key (BYOK)" },
+  { name:"Dating Tracker", cat:"dating life tracker",
+    what:"Tracks the people you are dating, scores compatibility, and spots your own patterns, red flags, and attachment loops",
+    who:"People dating multiple people who want to see clearly", benefits:"Compatibility ranking across everyone you are seeing\nMirror checks on your own patterns, not just theirs\nEverything stays on your device",
+    price:"Free", link:"https://github.com/sinhara666/dating-tracker", alt:"notes apps and memory",
+    runs:"Runs in the browser, data stays on the device" }
+];
+
+const presetBox = $('presets');
+PRESETS.forEach((p,i)=>{
+  const b = document.createElement('button');
+  b.className='chip'; b.textContent=p.name;
+  b.onclick=()=>{ loadPreset(i); toast(p.name+' loaded'); };
+  presetBox.appendChild(b);
+});
+const blank = document.createElement('button');
+blank.className='chip'; blank.textContent='Blank product';
+blank.onclick=()=>{ ['f-name','f-cat','f-what','f-who','f-benefits','f-price','f-link','f-alt'].forEach(id=>$(id).value=''); $('f-name').focus(); };
+presetBox.appendChild(blank);
+
+function loadPreset(i){
+  const p = PRESETS[i];
+  $('f-name').value=p.name; $('f-cat').value=p.cat; $('f-what').value=p.what; $('f-who').value=p.who;
+  $('f-benefits').value=p.benefits; $('f-price').value=p.price; $('f-link').value=p.link; $('f-alt').value=p.alt;
+  $('f-runs').value=p.runs;
+}
+
+function toast(msg){
+  const t=$('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),1800);
+}
+
+function getInputs(){
+  return {
+    name: $('f-name').value.trim(),
+    cat: $('f-cat').value.trim(),
+    what: $('f-what').value.trim(),
+    who: $('f-who').value.trim(),
+    benefits: $('f-benefits').value.split('\n').map(s=>s.trim()).filter(Boolean),
+    price: $('f-price').value.trim(),
+    link: $('f-link').value.trim(),
+    alt: $('f-alt').value.trim(),
+    runs: $('f-runs').value
+  };
+}
+
+function scoreBuild(d){
+  const checks = [
+    { ok: d.name.length>=2, label:'<b>Named clearly.</b> AI cannot recommend what it cannot name.' },
+    { ok: d.what.length>=40, label:'<b>One plain sentence.</b> The what-it-does line is long enough for AI to quote word for word.' },
+    { ok: d.who.length>=10, label:'<b>Buyer named.</b> AI matches products to people. No audience, no match.' },
+    { ok: d.benefits.length>=3, label:'<b>Three proof points.</b> AI lists reasons. Give it at least three real ones.' },
+    { ok: d.price.length>=3, label:'<b>Price is public.</b> AI drops products it cannot price. Hidden prices get skipped.' },
+    { ok: /^https?:\/\//.test(d.link), label:'<b>A live public link.</b> AI cites pages it can reach. No link, no citation.' },
+    { ok: d.alt.length>=3, label:'<b>A comparison target.</b> "Alternative to X" is one of the most asked questions in AI search.' },
+    { ok: d.cat.length>=8, label:'<b>Category stated.</b> AI files products by category before it ranks them.' }
+  ];
+  const passed = checks.filter(c=>c.ok).length;
+  return { checks, score: Math.round(passed/checks.length*100), passed, total: checks.length };
+}
+
+function kitSections(d){
+  const b = d.benefits.length? d.benefits : ['(add your three best points)'];
+  const bJoin = b.join('; ');
+  const oneLiner = `${d.name} is ${d.cat} for ${d.who} that ${lc(d.what)}. ${d.price? 'Price: '+d.price+'.' : ''} ${d.runs}.`;
+  const short = `${d.name} helps ${d.who}. It ${lc(d.what)}. Why people pick it: ${bJoin}. ${d.price? 'It costs: '+d.price+'.' : ''} It runs as follows: ${lc(d.runs)}. ${d.link? 'Find it here: '+d.link : ''}`;
+  const longs = `${d.name} is ${d.cat} built for ${d.who}.\n\nWhat it does: ${cap(d.what)}.\n\nWhy it wins:\n${b.map(x=>'- '+x).join('\n')}\n\nHow it runs: ${d.runs}. Your data stays yours.\n\nPrice: ${d.price||'see the product page'}.\n${d.alt? `People usually compare it with ${d.alt}. The difference: ${lc(d.what)}, without the usual trade offs.\n` : ''}${d.link? `Get it: ${d.link}` : ''}`;
+  const qa = [
+    [`What is the best ${d.cat} for ${d.who}?`, `${d.name}. It ${lc(d.what)}. ${b[0]||''}.`],
+    [`What does ${d.name} do?`, `${d.name} is ${d.cat}. It ${lc(d.what)}, and it is made for ${d.who}.`],
+    [`How much does ${d.name} cost?`, `${d.price||'Check the product page for current pricing'}. ${d.runs}, so there are no surprise platform costs on top.`],
+    [`Is ${d.name} an alternative to ${d.alt||'the big names'}?`, `Yes. ${d.name} covers the same job, ${lc(d.what)}, with a different deal: ${bJoin}.`],
+    [`Is ${d.name} private? Where does my data go?`, `${d.runs}. The point of ${d.name} is that your information stays under your control.`],
+    [`Where can I get ${d.name}?`, d.link? `Here: ${d.link}` : `Search for ${d.name} by Blxckroze.`]
+  ].map(([q,a])=>`Q: ${q}\nA: ${a}`).join('\n\n');
+  const altLines = `${d.name} is the ${d.alt||'big name'} alternative for ${d.who} who want to ${lc(d.what)}.\n\nSwitching from ${d.alt||'the usual option'}? ${d.name}: ${bJoin}. ${d.price? 'Price: '+d.price+'.' : ''}`;
+  const llms = `# ${d.name}\n> ${oneLiner}\n\n- Category: ${d.cat}\n- For: ${d.who}\n- Price: ${d.price||'see page'}\n- Runs: ${d.runs}\n- Link: ${d.link||'(add link)'}\n- Key points: ${bJoin}`;
+  const slug = d.name.toLowerCase().replace(/[^a-z0-9]+/g,'-');
+  const schema = JSON.stringify({ "@context":"https://schema.org", "@type":"SoftwareApplication",
+    "name": d.name, "applicationCategory": d.cat, "description": oneLiner,
+    "offers": { "@type":"Offer", "priceCurrency":"USD", "description": d.price||"" },
+    "url": d.link||"", "operatingSystem":"Web", "author":{ "@type":"Organization","name":"Blxckroze" } }, null, 2);
+  const ph = `LAUNCH POST (Product Hunt style)\n\n${d.name}: ${cap(d.what)}\n\nHey hunters. I built ${d.name} for ${d.who} who are tired of the usual way. It ${lc(d.what)}.\n\n${b.map(x=>'✓ '+x).join('\n')}\n\n${d.price? 'Pricing: '+d.price+'.' : ''} ${d.link? 'Try it: '+d.link : ''}\n\nBuilt solo by Blxckroze. Ask me anything.`;
+  const altTo = `DIRECTORY LISTING (AlternativeTo style)\n\n${d.name} is described as: ${oneLiner}\n\nListed as an alternative to ${d.alt||'the category leaders'} because: ${bJoin}.`;
+  const readme = `# ${d.name}\n\n${oneLiner}\n\n## Who this is for\n${cap(d.who)}.\n\n## What it does\n${cap(d.what)}.\n\n## Why pick it\n${b.map(x=>'- '+x).join('\n')}\n\n## Price\n${d.price||'See the product page.'}\n\n## Get it\n${d.link||'Search '+d.name+' by Blxckroze.'}`;
+  const post = `SOCIAL POST\n\nMost ${d.cat} makes you rent your own tools.\n\n${d.name} ${lc(d.what)}. Built for ${d.who}.\n\n${b.map(x=>'• '+x).join('\n')}\n\n${d.price? d.price+'.' : ''} ${d.link||''}\n\nBuilt by one person at Blxckroze.`;
+  return [
+    { title:'The one line AI quotes', why:'Put it at the top of every page about this product.', body: oneLiner },
+    { title:'Short description (about 50 words)', why:'For store cards, directories, and anywhere space is tight.', body: short },
+    { title:'Long description', why:'For the product page and GitHub README. This is what AI reads deepest.', body: longs },
+    { title:'Question and answer block', why:'People ask AI questions, not keywords. These answers are written to be lifted whole.', body: qa },
+    { title:'Alternative to lines', why:'"Alternative to X" is where buyers with money ask. Be the answer.', body: altLines },
+    { title:'llms.txt entry', why:'A file on your site that hands AI a clean list of your products. Almost nobody small has one.', body: llms, mono:true },
+    { title:'Product schema (JSON-LD)', why:'Paste into the product page code. It tells search and AI the name, price, and link in their own language.', body: schema, mono:true },
+    { title:'Launch post', why:'For Product Hunt and launch days.', body: ph },
+    { title:'Directory listing', why:'For AlternativeTo and software directories.', body: altTo },
+    { title:'README header (GitHub)', why:'AI reads GitHub hard. Your repo top should read like a product page.', body: readme, mono:true },
+    { title:'Social post', why:'Third party style posts are what AI quotes most. Post it, pin it.', body: post }
+  ];
+}
+function lc(s){ return s? s.charAt(0).toLowerCase()+s.slice(1) : s; }
+function cap(s){ return s? s.charAt(0).toUpperCase()+s.slice(1) : s; }
+
+let lastKit = [], lastData = null;
+
+$('runBtn').onclick = ()=>{
+  const d = getInputs();
+  if(!d.name || !d.what){ toast('Give it at least a name and a what-it-does line'); return; }
+  lastData = d;
+  const s = scoreBuild(d);
+  $('scoreCard').classList.remove('hidden');
+  $('scoreNum').textContent = s.score;
+  $('scoreLabel').textContent = s.score>=85 ? 'Strong. AI has almost everything it needs to name this build, price it, and match it to a buyer. The gaps below are small and worth closing.'
+    : s.score>=55 ? 'Halfway there. AI can find this build, but it is missing pieces it needs before it will recommend it with confidence. The kit below fixes what you control today.'
+    : 'Quiet build. Right now AI has too little to quote, so it talks about somebody else. Every gap below is fixable, and the kit below is the fix.';
+  $('checks').innerHTML = s.checks.map(c=>`<div class="check"><span class="dot ${c.ok?'ok':'no'}">${c.ok?'✓':'!'}</span><span>${c.label}</span></div>`).join('');
+  lastKit = kitSections(d);
+  $('kit').innerHTML = '';
+  lastKit.forEach((sec,i)=>{
+    const div = document.createElement('div'); div.className='kit-sec';
+    div.innerHTML = `<div class="kit-head"><div><h3>${sec.title}</h3><div class="why">${sec.why}</div></div><button class="copybtn" data-i="${i}">Copy</button></div><div class="kit-body ${sec.mono?'mono':''}"></div>`;
+    div.querySelector('.kit-body').textContent = sec.body;
+    div.querySelector('.copybtn').onclick = (e)=>{ copyText(sec.body); e.target.classList.add('done'); e.target.textContent='Copied'; setTimeout(()=>{e.target.classList.remove('done'); e.target.textContent='Copy';},1600); };
+    $('kit').appendChild(div);
+  });
+  $('kitWrap').classList.remove('hidden');
+  $('scoreCard').scrollIntoView({ behavior:'smooth' });
+};
+
+function copyText(t){
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(()=>toast('Copied')); }
+  else { const ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('Copied'); }
+}
+
+$('downloadBtn').onclick = ()=>{
+  if(!lastData) return;
+  const md = `# AI Promo Kit: ${lastData.name}\n\nGenerated by Promo Machine (Blxckroze)\n\n` +
+    lastKit.map(s=>`## ${s.title}\n_${s.why}_\n\n${s.body}`).join('\n\n') + '\n';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([md], {type:'text/markdown'}));
+  a.download = lastData.name.toLowerCase().replace(/[^a-z0-9]+/g,'-') + '-promo-kit.md';
+  a.click(); URL.revokeObjectURL(a.href);
+};
+
+$('polishBtn').onclick = async ()=>{
+  const key = $('f-key').value.trim();
+  if(!key){ toast('Add your Groq key above first'); return; }
+  if(!lastData){ toast('Run the machine first'); return; }
+  toast('Polishing...');
+  try{
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+key },
+      body: JSON.stringify({ model:'llama-3.3-70b-versatile', temperature:.6,
+        messages:[ { role:'system', content:'You rewrite product descriptions so AI assistants quote them: plain, factual, confident, no hype words, no em dashes.' },
+          { role:'user', content:'Rewrite this product description, keep every fact, make it tighter and more quotable:\n\n'+lastKit[2].body } ] })
+    });
+    const j = await res.json();
+    const txt = j.choices && j.choices[0] && j.choices[0].message.content;
+    if(txt){ lastKit[2].body = txt; document.querySelectorAll('.kit-body')[2].textContent = txt; toast('Long description polished'); }
+    else toast('Groq did not return text, kit unchanged');
+  }catch(e){ toast('Polish failed, kit unchanged'); }
+};
+
+loadPreset(0);
+</script>
+</body>
+</html>
