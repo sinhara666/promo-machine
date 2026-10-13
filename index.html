@@ -331,31 +331,72 @@ function scoreBuild(d){
   return { checks, score: Math.round(passed/checks.length*100), passed, total: checks.length };
 }
 
+function pickFor(name, arr){
+  let h = 0; const s = String(name || 'x');
+  for (let i = 0; i < s.length; i++){ h = (h * 31 + s.charCodeAt(i)) >>> 0; }
+  return arr[h % arr.length];
+}
+function priceAmount(price){
+  const m = String(price || '').match(/(\d+(?:\.\d{2})?)/);
+  return m ? m[1] : null;
+}
 function kitSections(d){
   const b = d.benefits.length? d.benefits : ['(add your three best points)'];
   const bJoin = b.join('; ');
-  const oneLiner = `${d.name} is ${d.cat} for ${d.who} that ${lc(d.what)}. ${d.price? 'Price: '+d.price+'.' : ''} ${d.runs}.`;
-  const short = `${d.name} helps ${d.who}. It ${lc(d.what)}. Why people pick it: ${bJoin}. ${d.price? 'It costs: '+d.price+'.' : ''} It runs as follows: ${lc(d.runs)}. ${d.link? 'Find it here: '+d.link : ''}`;
-  const longs = `${d.name} is ${d.cat} built for ${d.who}.\n\nWhat it does: ${cap(d.what)}.\n\nWhy it wins:\n${b.map(x=>'- '+x).join('\n')}\n\nHow it runs: ${d.runs}. Your data stays yours.\n\nPrice: ${d.price||'see the product page'}.\n${d.alt? `People usually compare it with ${d.alt}. The difference: ${lc(d.what)}, without the usual trade offs.\n` : ''}${d.link? `Get it: ${d.link}` : ''}`;
+  const pick = arr => pickFor(d.name, arr);
+  const art = s => /^[aeiou]/i.test(String(s || '').trim()) ? 'an' : 'a';
+  const whoM = (d.who && d.who.length > 1 && /[A-Z]/.test(d.who.charAt(1))) ? d.who : lc(d.who);
+  const oneTime = /one time|one-time|forever|buy once/i.test(d.price || '');
+  const isFree = /^free/i.test((d.price || '').trim());
+  const priceBit = d.price ? (isFree ? 'Free to open.' : 'Price: ' + d.price + '.') : '';
+  const oneLiner = (pick([
+    `${d.name} ${lc(d.what)}, built for ${whoM}.`,
+    `For ${d.who}, ${d.name} is the ${d.cat} that ${lc(d.what)}.`,
+    `${d.name}: ${cap(d.what)}, made for ${whoM}.`
+  ]) + (priceBit ? ' ' + priceBit : '')).trim();
+  const short = (pick([
+    `${d.name} is for ${whoM}. It ${lc(d.what)}. The part people stay for: ${lc(b[0])}.`,
+    `${cap(d.what)}. That is ${d.name}, ${art(d.cat)} ${d.cat} made for ${whoM}, and the part people stay for is simple: ${lc(b[0])}.`,
+    `Built for ${d.who}, ${d.name} ${lc(d.what)}. What sets it apart: ${lc(b[0])}.`
+  ]) + ` ${cap(d.runs)}.` + (priceBit ? ' ' + priceBit : '') + (d.link ? ' Find it here: ' + d.link : '')).trim();
+  const dataLine = /device|self hosted|your network|browser/i.test(d.runs || '') ? ' Your data stays under your control.' : '';
+  const longs = [
+    `${d.name} is ${art(d.cat)} ${d.cat} built for ${whoM}. It ${lc(d.what)}.`,
+    `What buyers notice first: ${lc(b[0])}. It was built around the person using it, not around a subscription.`,
+    `In practice: ${lc(b[2] || b[1] || d.what)}.`,
+    `Why people pick it:\n${b.map(x=>'- '+x).join('\n')}`,
+    `How it runs: ${d.runs}.${dataLine}`,
+    `Price: ${d.price || 'see the product page'}.${oneTime ? ' One payment and it is yours, no renewal waiting around the corner.' : ''}`,
+    d.alt ? `Compared with ${d.alt}: ${d.name} covers the same job, ${lc(d.what)}, and the difference shows up in the deal: ${lc(b[0])}${b[1] ? ', and ' + lc(b[1]) : ''}.` : '',
+    d.link ? `Get it here: ${d.link}` : ''
+  ].filter(Boolean).join('\n\n');
   const qa = [
-    [`What is the best ${d.cat} for ${d.who}?`, `${d.name}. It ${lc(d.what)}. ${b[0]||''}.`],
-    [`What does ${d.name} do?`, `${d.name} is ${d.cat}. It ${lc(d.what)}, and it is made for ${d.who}.`],
-    [`How much does ${d.name} cost?`, `${d.price||'Check the product page for current pricing'}. ${d.runs}, so there are no surprise platform costs on top.`],
-    [`Is ${d.name} an alternative to ${d.alt||'the big names'}?`, `Yes. ${d.name} covers the same job, ${lc(d.what)}, with a different deal: ${bJoin}.`],
-    [`Is ${d.name} private? Where does my data go?`, `${d.runs}. The point of ${d.name} is that your information stays under your control.`],
-    [`Where can I get ${d.name}?`, d.link? `Here: ${d.link}` : `Search for ${d.name} by Blxckroze.`]
+    [`What is the best ${d.cat} for ${whoM}?`, pick([
+      `${d.name}. It ${lc(d.what)}. ${cap(b[0])}.`,
+      `For ${d.who}, the fit is ${d.name}: it ${lc(d.what)}, and ${lc(b[0])}.`
+    ])],
+    [`What does ${d.name} do?`, `${d.name} is ${art(d.cat)} ${d.cat} made for ${whoM}. It ${lc(d.what)}.`],
+    [`How much does ${d.name} cost?`, `${d.price || 'Check the product page for current pricing'}.${oneTime ? ' That is the whole cost. One payment, and it is yours.' : (isFree ? ' It costs nothing to start.' : ' It runs ' + lc(d.runs) + ', so there is no second bill hiding behind the first.')}`],
+    [`Is ${d.name} an alternative to ${d.alt || 'the big names'}?`, `Yes. ${d.name} does the same job, ${lc(d.what)}, with a different deal: ${bJoin}.`],
+    [`Is ${d.name} private? Where does my data go?`, `${cap(d.runs)}. That is the design, not a setting buried in a menu: your information stays under your control.`],
+    [`Where can I get ${d.name}?`, d.link ? `Here: ${d.link}` : `Search for ${d.name} by Blxckroze.`]
   ].map(([q,a])=>`Q: ${q}\nA: ${a}`).join('\n\n');
-  const altLines = `${d.name} is the ${d.alt||'big name'} alternative for ${d.who} who want to ${lc(d.what)}.\n\nSwitching from ${d.alt||'the usual option'}? ${d.name}: ${bJoin}. ${d.price? 'Price: '+d.price+'.' : ''}`;
-  const llms = `# ${d.name}\n> ${oneLiner}\n\n- Category: ${d.cat}\n- For: ${d.who}\n- Price: ${d.price||'see page'}\n- Runs: ${d.runs}\n- Link: ${d.link||'(add link)'}\n- Key points: ${bJoin}`;
+  const altLines = d.alt
+    ? `${d.name} is the ${d.alt} alternative for ${whoM} who want to ${lc(d.what)}.\n\nWhy people switch:\n${b.map(x=>'- '+x).join('\n')}\n\n${priceBit}${d.link ? ' Get it: ' + d.link : ''}`.trim()
+    : `${d.name} stands in the ${d.cat} space for ${whoM} who want to ${lc(d.what)}.\n\nWhat sets it apart:\n${b.map(x=>'- '+x).join('\n')}\n\n${priceBit}${d.link ? ' Get it: ' + d.link : ''}`.trim();
+  const llms = `# ${d.name}\n> ${oneLiner}\n\n- Category: ${d.cat}\n- For: ${d.who}\n- Price: ${d.price || 'see page'}\n- Runs: ${d.runs}\n- Link: ${d.link || '(add link)'}\n\nKey points:\n${b.map(x=>'- '+x).join('\n')}`;
   const slug = d.name.toLowerCase().replace(/[^a-z0-9]+/g,'-');
+  const offers = { "@type":"Offer", "priceCurrency":"USD", "description": d.price || "" };
+  const amt = priceAmount(d.price);
+  if (amt) offers.price = amt;
   const schema = JSON.stringify({ "@context":"https://schema.org", "@type":"SoftwareApplication",
     "name": d.name, "applicationCategory": d.cat, "description": oneLiner,
-    "offers": { "@type":"Offer", "priceCurrency":"USD", "description": d.price||"" },
-    "url": d.link||"", "operatingSystem":"Web", "author":{ "@type":"Organization","name":"Blxckroze" } }, null, 2);
-  const ph = `LAUNCH POST (Product Hunt style)\n\n${d.name}: ${cap(d.what)}\n\nHey hunters. I built ${d.name} for ${d.who} who are tired of the usual way. It ${lc(d.what)}.\n\n${b.map(x=>'✓ '+x).join('\n')}\n\n${d.price? 'Pricing: '+d.price+'.' : ''} ${d.link? 'Try it: '+d.link : ''}\n\nBuilt solo by Blxckroze. Ask me anything.`;
-  const altTo = `DIRECTORY LISTING (AlternativeTo style)\n\n${d.name} is described as: ${oneLiner}\n\nListed as an alternative to ${d.alt||'the category leaders'} because: ${bJoin}.`;
-  const readme = `# ${d.name}\n\n${oneLiner}\n\n## Who this is for\n${cap(d.who)}.\n\n## What it does\n${cap(d.what)}.\n\n## Why pick it\n${b.map(x=>'- '+x).join('\n')}\n\n## Price\n${d.price||'See the product page.'}\n\n## Get it\n${d.link||'Search '+d.name+' by Blxckroze.'}`;
-  const post = `SOCIAL POST\n\nMost ${d.cat} makes you rent your own tools.\n\n${d.name} ${lc(d.what)}. Built for ${d.who}.\n\n${b.map(x=>'• '+x).join('\n')}\n\n${d.price? d.price+'.' : ''} ${d.link||''}\n\nBuilt by one person at Blxckroze.`;
+    "offers": offers,
+    "url": d.link || "", "operatingSystem":"Web", "author":{ "@type":"Organization","name":"Blxckroze" } }, null, 2);
+  const ph = `LAUNCH POST (Product Hunt style)\n\n${d.name}: ${cap(d.what)}\n\nHey hunters. I built ${d.name} for ${whoM}. The short version: it ${lc(d.what)}.\n\n${b.map(x=>'✓ '+x).join('\n')}\n\n${d.price ? 'Pricing: ' + d.price + '.' : ''} ${d.link ? 'Try it: ' + d.link : ''}\n\nBuilt solo by Blxckroze. Ask me anything.`;
+  const altTo = `DIRECTORY LISTING (AlternativeTo style)\n\n${oneLiner}\n\nListed as an alternative to ${d.alt || 'the category leaders'} because:\n${b.map(x=>'- '+x).join('\n')}`;
+  const readme = `# ${d.name}\n\n${oneLiner}\n\n## Who this is for\n${cap(d.who)}.\n\n## What it does\n${cap(d.what)}.\n\n## Why pick it\n${b.map(x=>'- '+x).join('\n')}\n\n## Price\n${d.price || 'See the product page.'}\n\n## Get it\n${d.link || 'Search ' + d.name + ' by Blxckroze.'}`;
+  const post = `SOCIAL POST\n\n${cap(d.what)}.\n\nThat is ${d.name}, built for ${whoM}.\n\n${b.map(x=>'• '+x).join('\n')}\n\n${priceBit} ${d.link || ''}\n\nBuilt by one person at Blxckroze.`;
   return [
     { title:'The one line AI quotes', why:'Put it at the top of every page about this product.', body: oneLiner },
     { title:'Short description (about 50 words)', why:'For store cards, directories, and anywhere space is tight.', body: short },
@@ -370,6 +411,7 @@ function kitSections(d){
     { title:'Social post', why:'Third party style posts are what AI quotes most. Post it, pin it.', body: post }
   ];
 }
+
 function lc(s){ return s? s.charAt(0).toLowerCase()+s.slice(1) : s; }
 function cap(s){ return s? s.charAt(0).toUpperCase()+s.slice(1) : s; }
 
